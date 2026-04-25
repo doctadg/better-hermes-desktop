@@ -1,14 +1,16 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import type { Message } from '@/api/types';
+import type { Message, SessionActivity } from '@/api/types';
 import { MessageBubble } from './MessageBubble';
 import { StreamingMessage } from './StreamingMessage';
 
 interface MessageListProps {
   messages: Message[];
   isStreaming: boolean;
+  isRemoteActive?: boolean;
+  remoteActivity?: SessionActivity | null;
 }
 
-export function MessageList({ messages, isStreaming }: MessageListProps) {
+export function MessageList({ messages, isStreaming, isRemoteActive, remoteActivity }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -67,6 +69,28 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
         {/* Bottom anchor for scrolling */}
         <div ref={endRef} className="h-2" />
       </div>
+
+      {/* Remote activity indicator — pulsing amber bar */}
+      {isRemoteActive && remoteActivity && (
+        <div className="absolute bottom-0 left-0 right-0 px-4 py-2.5 bg-gradient-to-t from-amber-950/80 via-amber-950/60 to-transparent pointer-events-none">
+          <div className="flex items-center gap-2 max-w-3xl mx-auto">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <span className="text-xs text-amber-300 font-medium">
+              Agent is working via another client
+            </span>
+            {remoteActivity.active_tools.length > 0 && (
+              <span className="text-xs text-amber-500/80">
+                — {remoteActivity.active_tools.join(', ')}
+              </span>
+            )}
+            {remoteActivity.last_assistant_text && (
+              <span className="text-xs text-amber-500/60 truncate max-w-[300px]">
+                {remoteActivity.last_assistant_text.slice(-80)}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Scroll to bottom button */}
       {showScrollBtn && (

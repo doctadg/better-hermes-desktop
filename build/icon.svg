@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="180" fill="#09090b"/>
+  
+  <!-- Subtle hexagon background glow -->
+  <polygon points="512,120 870,316 870,708 512,904 154,708 154,316" fill="#1a1a2e" stroke="#2a2a4e" stroke-width="3"/>
+  
+  <!-- Inner hexagon with gradient -->
+  <defs>
+    <linearGradient id="hexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="innerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main hexagon -->
+  <polygon points="512,160 830,330 830,694 512,864 194,694 194,330" fill="none" stroke="url(#hexGrad)" stroke-width="12" stroke-linejoin="round"/>
+  
+  <!-- Cross / Plus design in center -->
+  <rect x="475" y="300" width="74" height="424" rx="20" fill="url(#innerGrad)"/>
+  <rect x="350" y="425" width="324" height="74" rx="20" fill="url(#innerGrad)"/>
+  
+  <!-- Small decorative dots at hexagon vertices -->
+  <circle cx="512" cy="160" r="8" fill="#f59e0b"/>
+  <circle cx="830" cy="330" r="8" fill="#f59e0b"/>
+  <circle cx="830" cy="694" r="8" fill="#f59e0b"/>
+  <circle cx="512" cy="864" r="8" fill="#f59e0b"/>
+  <circle cx="194" cy="694" r="8" fill="#f59e0b"/>
+  <circle cx="194" cy="330" r="8" fill="#f59e0b"/>
+</svg>

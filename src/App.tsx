@@ -1,16 +1,37 @@
 import { useState, useCallback, useEffect } from 'react';
+import {
+  MessageSquare,
+  History,
+  Boxes,
+  Brain,
+  Heart,
+  Sparkles,
+  Wrench,
+  CalendarClock,
+  Send,
+  Settings as SettingsIcon,
+  FileCode,
+  GitCompare,
+  Cpu,
+} from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ConnectionPicker } from '@/components/connection/ConnectionPicker';
 import { ProfilePicker } from '@/components/connection/ProfilePicker';
 import { ConnectionDialog } from '@/components/connection/ConnectionDialog';
 import { SessionSidebar } from '@/components/sidebar/SessionSidebar';
 import { ContextPanel } from '@/components/context/ContextPanel';
-import { MemoryScreen } from '@/components/screens/MemoryScreen';
-import { SoulScreen } from '@/components/screens/SoulScreen';
-import { SkillsScreen } from '@/components/screens/SkillsScreen';
-import { ToolsScreen } from '@/components/screens/ToolsScreen';
-import { SchedulesScreen } from '@/components/screens/SchedulesScreen';
-import { SettingsScreen } from '@/components/screens/SettingsScreen';
+import { MemoryScreen } from '@/features/memory/MemoryScreen';
+import { SoulScreen } from '@/features/soul/SoulScreen';
+import { SkillsScreen } from '@/features/skills/SkillsScreen';
+import { ToolsScreen } from '@/features/tools/ToolsScreen';
+import SchedulesScreen from '@/features/cron/SchedulesScreen';
+import { EditorScreen } from '@/features/editor/EditorScreen';
+import { DiffScreen } from '@/features/editor/DiffScreen';
+import { HardwareScreen } from '@/components/screens/HardwareScreen';
+import { SettingsScreen } from '@/features/settings/SettingsScreen';
+import { ModelsScreen } from '@/features/models/ModelsScreen';
+import { GatewaysScreen } from '@/features/gateways/GatewaysScreen';
+import { SessionsScreen } from '@/features/sessions/SessionsScreen';
 import { PaneGrid } from '@/components/layout/PaneGrid';
 import { PaneHud } from '@/components/layout/PaneHud';
 import { CommandPalette } from '@/components/layout/CommandPalette';
@@ -18,7 +39,20 @@ import { useConnectionStore } from '@/stores/connection';
 import { useChatStore, generateSessionId } from '@/stores/chat';
 import { useLayoutStore } from '@/stores/layout';
 
-type NavItem = 'chat' | 'sessions' | 'memory' | 'soul' | 'skills' | 'tools' | 'schedules' | 'settings';
+type NavItem =
+  | 'chat'
+  | 'sessions'
+  | 'models'
+  | 'memory'
+  | 'soul'
+  | 'skills'
+  | 'tools'
+  | 'editor'
+  | 'diff'
+  | 'schedules'
+  | 'gateways'
+  | 'hardware'
+  | 'settings';
 
 interface NavDef {
   id: NavItem;
@@ -27,91 +61,19 @@ interface NavDef {
 }
 
 const NAV_ITEMS: NavDef[] = [
-  {
-    id: 'chat',
-    label: 'Chat',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M2 2h12v9H5l-3 3v-3H2V2z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'sessions',
-    label: 'Sessions',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M1.5 3.5h13v10h-13v-10z" />
-        <path d="M1.5 5.5h13" />
-        <path d="M5 1.5v4" />
-        <path d="M11 1.5v4" />
-      </svg>
-    ),
-  },
-  {
-    id: 'memory',
-    label: 'Memory',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M8 1.5C5 1.5 2.5 3 2.5 6c0 2 1 3.5 2.5 4.5L4 14.5l3-2c.3 0 .7.05 1 .05s.7-.05 1-.05l3 2-.5-4C12 9.5 13.5 8 13.5 6c0-3-2.5-4.5-5.5-4.5z" />
-        <circle cx="6" cy="6" r="0.7" fill="currentColor" />
-        <circle cx="10" cy="6" r="0.7" fill="currentColor" />
-      </svg>
-    ),
-  },
-  {
-    id: 'soul',
-    label: 'Soul',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M8 14s-5-3.5-5-7.5C3 3.5 5.2 1.5 8 1.5S13 3.5 13 6.5C13 10.5 8 14 8 14z" />
-        <path d="M6.5 6.5c0-0.3 0.7-1 1.5-1s1.5 0.7 1.5 1" />
-        <circle cx="8" cy="9" r="0.7" fill="currentColor" />
-      </svg>
-    ),
-  },
-  {
-    id: 'skills',
-    label: 'Skills',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="1.5" y="1.5" width="5" height="5" rx="1" />
-        <rect x="9.5" y="1.5" width="5" height="5" rx="1" />
-        <rect x="1.5" y="9.5" width="5" height="5" rx="1" />
-        <rect x="9.5" y="9.5" width="5" height="5" rx="1" />
-      </svg>
-    ),
-  },
-  {
-    id: 'tools',
-    label: 'Tools',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M10 2L14 6l-1.5 1.5-4-4L10 2z" />
-        <path d="M8.5 3.5l-6.2 6.2a1 1 0 000 1.4l2.6 2.6a1 1 0 001.4 0l6.2-6.2" />
-      </svg>
-    ),
-  },
-  {
-    id: 'schedules',
-    label: 'Schedules',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="8" cy="8" r="6" />
-        <path d="M8 4.5V8l2.5 1.5" />
-      </svg>
-    ),
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="8" cy="8" r="2.5" />
-        <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4" />
-      </svg>
-    ),
-  },
+  { id: 'chat', label: 'Chat', icon: <MessageSquare size={18} /> },
+  { id: 'sessions', label: 'Sessions', icon: <History size={18} /> },
+  { id: 'models', label: 'Models', icon: <Boxes size={18} /> },
+  { id: 'memory', label: 'Memory', icon: <Brain size={18} /> },
+  { id: 'soul', label: 'Persona', icon: <Heart size={18} /> },
+  { id: 'skills', label: 'Skills', icon: <Sparkles size={18} /> },
+  { id: 'tools', label: 'Tools', icon: <Wrench size={18} /> },
+  { id: 'editor', label: 'Editor', icon: <FileCode size={18} /> },
+  { id: 'diff', label: 'Diff', icon: <GitCompare size={18} /> },
+  { id: 'schedules', label: 'Schedules', icon: <CalendarClock size={18} /> },
+  { id: 'gateways', label: 'Gateways', icon: <Send size={18} /> },
+  { id: 'hardware', label: 'Hardware', icon: <Cpu size={18} /> },
+  { id: 'settings', label: 'Settings', icon: <SettingsIcon size={18} /> },
 ];
 
 export default function App() {
@@ -144,7 +106,7 @@ export default function App() {
     (s) => (focusedSessionId ? s.sessions[focusedSessionId]?.statusText : '') ?? ''
   );
 
-  const wsConnected = !!activeConnectionId; // per-session WS state lives in chat slices; topbar dot is "any active connection"
+  const wsConnected = !!activeConnectionId;
 
   // Make sure each session bound to a pane has a slice in the chat store
   // (so its WS gets opened by the pane's ChatView, and persisted history loads).
@@ -175,9 +137,28 @@ export default function App() {
         ensureSession(sid);
         assignToFocused(sid);
       }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setActiveNav('sessions');
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  }, [ensureSession, assignToFocused]);
+
+  // SessionsScreen dispatches `hermes:open-session` when the user clicks a session
+  // in the FTS5 browser; route it to the focused chat pane.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ sessionId?: string }>).detail;
+      const sid = detail?.sessionId;
+      if (!sid) return;
+      ensureSession(sid);
+      assignToFocused(sid);
+      setActiveNav('chat');
+    };
+    window.addEventListener('hermes:open-session', handler);
+    return () => window.removeEventListener('hermes:open-session', handler);
   }, [ensureSession, assignToFocused]);
 
   const handleOpenConnectionDialog = useCallback((connectionId?: string) => {
@@ -192,6 +173,10 @@ export default function App() {
 
   const renderScreen = () => {
     switch (activeNav) {
+      case 'sessions':
+        return <SessionsScreen />;
+      case 'models':
+        return <ModelsScreen />;
       case 'memory':
         return <MemoryScreen />;
       case 'soul':
@@ -200,25 +185,18 @@ export default function App() {
         return <SkillsScreen />;
       case 'tools':
         return <ToolsScreen />;
+      case 'editor':
+        return <EditorScreen />;
+      case 'diff':
+        return <DiffScreen />;
       case 'schedules':
         return <SchedulesScreen />;
+      case 'gateways':
+        return <GatewaysScreen />;
+      case 'hardware':
+        return <HardwareScreen />;
       case 'settings':
         return <SettingsScreen />;
-      case 'sessions':
-        return (
-          <div className="h-full flex items-center justify-center text-zinc-600 text-sm">
-            <div className="text-center space-y-2">
-              <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1" className="text-zinc-700 mx-auto">
-                <path d="M1.5 3.5h13v10h-13v-10z" />
-                <path d="M1.5 5.5h13" />
-                <path d="M5 1.5v4" />
-                <path d="M11 1.5v4" />
-              </svg>
-              <p>Session browser coming soon.</p>
-              <p className="text-xs text-zinc-700">Use the chat sidebar to manage sessions.</p>
-            </div>
-          </div>
-        );
       case 'chat':
       default:
         return null;
@@ -229,17 +207,20 @@ export default function App() {
     <div className="h-screen w-screen flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">
       {/* Top bar */}
       <div className="drag-region h-10 flex items-center px-3 border-b border-zinc-800 bg-zinc-950 shrink-0 gap-2">
-        <div className="no-drag flex items-center gap-2 flex-1">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-amber-500">
-            <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" />
-          </svg>
-          <span className="text-sm font-semibold text-zinc-400 mr-2">Hermes</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-amber-500 shrink-0">
+          <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" />
+        </svg>
+        <span className="text-sm font-semibold text-zinc-400 mr-2 shrink-0">Hermes</span>
 
+        <div className="no-drag flex items-center gap-2 shrink-0">
           <ConnectionPicker onAddConnection={handleOpenConnectionDialog} />
           <ProfilePicker />
         </div>
 
-        <div className="no-drag flex items-center gap-2">
+        {/* Draggable spacer */}
+        <div className="flex-1 self-stretch" />
+
+        <div className="no-drag flex items-center gap-2 shrink-0">
           <PaneHud />
           <button
             onClick={() => setPaletteOpen(true)}
@@ -272,12 +253,12 @@ export default function App() {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Navigation sidebar */}
-        <div className="shrink-0 w-12 bg-zinc-950 border-r border-zinc-800 flex flex-col items-center py-2 gap-1">
+        <div className="shrink-0 w-12 bg-zinc-950 border-r border-zinc-800 flex flex-col items-center py-2 gap-1 overflow-y-auto">
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveNav(item.id)}
-              className={`relative w-9 h-9 rounded-lg flex items-center justify-center transition-colors duration-150 group ${
+              className={`relative w-9 h-9 shrink-0 rounded-lg flex items-center justify-center transition-colors duration-150 group ${
                 activeNav === item.id
                   ? 'bg-amber-500/10 text-amber-500'
                   : 'text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50'
@@ -388,7 +369,7 @@ export default function App() {
   );
 }
 
-function SessionSidebarWrapper({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+function SessionSidebarWrapper({ visible: _visible, onToggle }: { visible: boolean; onToggle: () => void }) {
   return (
     <div className="flex flex-col h-full">
       <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-zinc-800">

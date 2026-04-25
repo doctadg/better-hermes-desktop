@@ -13,6 +13,11 @@ import {
   app,
   BrowserWindow,
   screen,
+  Tray,
+  nativeImage,
+  Menu,
+  Notification,
+  ipcMain,
 } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -34,6 +39,7 @@ const STORE_FILE = 'hermes-desktop.json';
 
 // ─── Globals ───
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
 let isQuitting = false;
 
 // ─── Single instance lock ───
@@ -195,6 +201,123 @@ const PRODUCTION_CSP = [
   "font-src 'self'",
 ].join('; ');
 
+// ─── System Tray ───
+
+function createTray(): void {
+  // Resolve tray icon from build resources (works both dev and packaged)
+  const trayIconPath = IS_DEV
+    ? path.join(__dirname, '..', 'build', 'tray-icon.png')
+    : path.join(process.resourcesPath, 'build', 'tray-icon.png');
+
+  let trayIcon: Electron.NativeImage;
+  try {
+    trayIcon = nativeImage.createFromPath(trayIconPath);
+    // Resize for platform consistency if image is too large
+    if (trayIcon.isEmpty()) {
+      throw new Error('Tray icon empty');
+    }
+    if (process.platform === 'darwin') {
+      trayIcon = trayIcon.resize({ width: 16, height: 16 });
+      trayIcon.setTemplateImage(true); // macOS: template for auto dark/light (mutates in place, returns void)
+    } else if (process.platform === 'win32') {
+      trayIcon = trayIcon.resize({ width: 16, height: 16 });
+    }
+  } catch {
+    // Fallback: create a tiny 16x16 amber pixel icon programmatically
+    trayIcon = nativeImage.createFromBuffer(
+      Buffer.from([
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+        0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+        0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x10, // 16x16
+        0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x91, 0x68, // 8bit RGB
+        0x36, 0x00, 0x00, 0x00, 0x01, 0x73, 0x52, 0x47, // sRGB
+        0x42, 0x00, 0xAE, 0xCE, 0x1C, 0xE9, 0x00, 0x00, 0x00, 0x04,
+        0x67, 0x41, 0x4D, 0x41, 0x00, 0x00, 0xB1, 0x8F, 0x0B, 0xFC,
+        0x61, 0x05, 0x00, 0x00, 0x00, 0x20, 0x49, 0x44, 0x41, 0x54,
+        0x78, 0x9C, 0x62, 0xF8, 0xCF, 0xC0, 0x00, 0x00, 0x00, 0x06,
+        0x00, 0x03, 0xFA, 0x20, 0x5B, 0xF0, 0x8F, 0xE3, 0x00, 0x00,
+        0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+      ])
+    );
+  }
+
+  tray = new Tray(trayIcon);
+  tray.setToolTip('Hermes Desktop');
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show Window',
+      click: () => {
+        showMainWindow();
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  // Click tray icon to show/restore window
+  tray.on('click', () => {
+    showMainWindow();
+  });
+
+  // Double-click as well
+  tray.on('double-click', () => {
+    showMainWindow();
+  });
+}
+
+function showMainWindow(): void {
+  if (!mainWindow) {
+    createMainWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+// ─── Notifications IPC ───
+
+function registerNotificationHandlers(): void {
+  ipcMain.handle('notification:show', async (_event, opts: { title: string; body: string; silent?: boolean }) => {
+    if (!Notification.isSupported()) {
+      return { success: false, error: 'Notifications not supported' };
+    }
+
+    const notification = new Notification({
+      title: opts.title,
+      body: opts.body,
+      silent: opts.silent ?? false,
+      icon: nativeImage.createFromPath(
+        IS_DEV
+          ? path.join(__dirname, '..', 'build', 'icon.png')
+          : path.join(process.resourcesPath, 'build', 'icon.png')
+      ),
+    });
+
+    notification.on('click', () => {
+      showMainWindow();
+      // Focus the window after a brief delay to ensure it's visible
+      setTimeout(() => {
+        mainWindow?.focus();
+      }, 100);
+    });
+
+    notification.show();
+    return { success: true };
+  });
+}
+
 // ─── BrowserWindow creation ───
 
 function createMainWindow(): BrowserWindow {
@@ -292,6 +415,14 @@ function createMainWindow(): BrowserWindow {
     mainWindow?.webContents.send('window:state-changed', { maximized: false });
   });
 
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow?.hide();
+    }
+    return false;
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -325,6 +456,8 @@ app.whenReady().then(() => {
 
   registerIPCHandlers(storeGet, storeSet);
   createMainWindow();
+  createTray();
+  registerNotificationHandlers();
   initUpdater(() => mainWindow);
 
   app.on('activate', () => {

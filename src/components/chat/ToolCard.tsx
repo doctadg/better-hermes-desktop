@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { ToolCallInfo } from '@/api/types';
+import { DiffViewer } from '@/features/editor/DiffViewer';
 
 interface ToolCardProps {
   toolCall: ToolCallInfo;
@@ -39,10 +40,35 @@ function getToolDisplayLabel(name: string): string {
 
 export function ToolCard({ toolCall }: ToolCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [showDiff, setShowDiff] = useState(false);
 
   const isRunning = toolCall.status === 'running';
   const isCompleted = toolCall.status === 'completed';
   const isFailed = toolCall.status === 'failed';
+
+  // Detect file-changing tools and extract old/new content for diff
+  const fileChangeInfo = useMemo(() => {
+    const fileToolNames = ['write_file', 'patch', 'edit_file', 'create_file'];
+    if (!fileToolNames.some((n) => toolCall.name.toLowerCase().includes(n))) return null;
+    if (!toolCall.args) return null;
+    try {
+      const parsed = JSON.parse(toolCall.args);
+      const path = parsed.path || parsed.file_path || parsed.fileName || '';
+      const content = parsed.content || parsed.new_string || parsed.patch || '';
+      const oldContent = parsed.old_string || parsed.old_content || '';
+      // For patch tools with old/new
+      if (oldContent && content) {
+        return { fileName: path, oldText: oldContent, newText: content };
+      }
+      // For write_file: show new content vs empty (new file) or summarize
+      if (content) {
+        return { fileName: path, oldText: '', newText: content };
+      }
+    } catch {
+      // not JSON, ignore
+    }
+    return null;
+  }, [toolCall.name, toolCall.args]);
 
   const toolIcon = useMemo(() => getToolIcon(toolCall.name), [toolCall.name]);
   const displayLabel = useMemo(() => getToolDisplayLabel(toolCall.name), [toolCall.name]);

@@ -1,7 +1,8 @@
-import { useChatStore, useSessionMessages, useSessionIsStreaming } from '@/stores/chat';
+import { useChatStore, useSessionMessages, useSessionIsStreaming, useSessionRemoteActivity } from '@/stores/chat';
 import { useConnectionStore } from '@/stores/connection';
 import { SessionProvider, useSessionId } from '@/contexts/SessionContext';
 import { useSessionWebSocket } from '@/hooks/useWebSocket';
+import { useSessionActivityPoll } from '@/hooks/useSessionActivity';
 import { MessageList } from './MessageList';
 import { InputBox } from './InputBox';
 
@@ -32,6 +33,13 @@ function ChatViewInner() {
   const serverConfig = useConnectionStore((s) => s.serverConfig);
   const isConnecting = useConnectionStore((s) => s.isConnecting);
 
+  // Poll for remote activity from other clients (e.g. Telegram)
+  // Only polls when NOT locally streaming
+  const remoteActivity = useSessionActivityPoll(sessionId);
+
+  // Determine if the agent is active remotely (not from our SSE stream)
+  const isRemoteActive = remoteActivity?.is_active === true && !isStreaming;
+
   // Keep the WebSocket alive as long as this view is mounted with a session.
   useSessionWebSocket(sessionId);
 
@@ -53,15 +61,22 @@ function ChatViewInner() {
   return (
     <div className="flex flex-col h-full bg-zinc-950">
       {hasMessages ? (
-        <MessageList messages={messages} isStreaming={isStreaming} />
+        <MessageList
+          messages={messages}
+          isStreaming={isStreaming}
+          isRemoteActive={isRemoteActive}
+          remoteActivity={remoteActivity}
+        />
       ) : (
         <WelcomeScreen
           isConnected={!!activeConnectionId}
           isConnecting={isConnecting}
           modelName={serverConfig?.model_name || serverConfig?.model}
+          isRemoteActive={isRemoteActive}
+          remoteActivity={remoteActivity}
         />
       )}
-      <InputBox disabled={!activeConnectionId} />
+      <InputBox disabled={!activeConnectionId} isRemoteActive={isRemoteActive} />
     </div>
   );
 }
@@ -70,9 +85,11 @@ interface WelcomeScreenProps {
   isConnected: boolean;
   isConnecting: boolean;
   modelName?: string;
+  isRemoteActive: boolean;
+  remoteActivity: import('@/api/types').SessionActivity | null;
 }
 
-function WelcomeScreen({ isConnected, isConnecting, modelName }: WelcomeScreenProps) {
+function WelcomeScreen({ isConnected, isConnecting, modelName, isRemoteActive, remoteActivity }: WelcomeScreenProps) {
   const sessionId = useSessionId();
   const sendMessage = useChatStore((s) => s.sendMessage);
 
@@ -124,6 +141,17 @@ function WelcomeScreen({ isConnected, isConnecting, modelName }: WelcomeScreenPr
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-500">
             <span className="inline-block w-2 h-2 rounded-full bg-zinc-700" />
             Not connected
+          </div>
+        )}
+
+        {/* Remote activity indicator on welcome screen */}
+        {isRemoteActive && remoteActivity && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            Agent is working via another client
+            {remoteActivity.active_tools.length > 0 && (
+              <span className="text-amber-500/70"> — {remoteActivity.active_tools.join(', ')}</span>
+            )}
           </div>
         )}
 

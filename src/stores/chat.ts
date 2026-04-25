@@ -39,6 +39,8 @@ export interface SessionSlice {
   statusKind: StatusKind;
   statusText: string;
   activeRequests: Map<string, ActiveRequest>;
+  // Cross-client activity (from polling /api/sessions/{id}/activity)
+  remoteActivity: import('@/api/types').SessionActivity | null;
 }
 
 const EMPTY_SLICE: SessionSlice = {
@@ -49,6 +51,7 @@ const EMPTY_SLICE: SessionSlice = {
   statusKind: 'idle',
   statusText: '',
   activeRequests: new Map(),
+  remoteActivity: null,
 };
 
 export const EMPTY_MESSAGES: Message[] = [];
@@ -100,6 +103,8 @@ interface ChatState {
   handleToolStart: (sessionId: string, toolCall: ToolCallInfo) => void;
   handleToolComplete: (sessionId: string, toolId: string, updates: Partial<ToolCallInfo>) => void;
   handleToolProgress: (sessionId: string, toolName: string, preview: string) => void;
+
+  setRemoteActivity: (sessionId: string, activity: import('@/api/types').SessionActivity | null) => void;
 
   recoverFromInterrupt: (sessionId: string) => void;
 }
@@ -624,6 +629,12 @@ export const useChatStore = create<ChatState>()(
         );
       },
 
+      setRemoteActivity: (sessionId, activity) => {
+        set((state) =>
+          updateSlice(state, sessionId, { remoteActivity: activity })
+        );
+      },
+
       recoverFromInterrupt: (sessionId) => {
         set((state) =>
           updateSlice(state, sessionId, (slice) => ({
@@ -677,6 +688,7 @@ export const useChatStore = create<ChatState>()(
             activeRequests: r.activeRequests
               ? new Map(r.activeRequests as [string, ActiveRequest][])
               : new Map(),
+            remoteActivity: null,
           };
         }
         return { ...currentState, sessions: restored };
@@ -733,3 +745,6 @@ export const useSessionStatusText = (sessionId: string | null | undefined): stri
 
 export const useSessionToolCalls = (sessionId: string | null | undefined): Map<string, ToolCallInfo> =>
   useChatStore((s) => (sessionId ? s.sessions[sessionId]?.currentToolCalls : undefined) ?? EMPTY_TOOL_CALLS);
+
+export const useSessionRemoteActivity = (sessionId: string | null | undefined): import('@/api/types').SessionActivity | null =>
+  useChatStore((s) => (sessionId ? s.sessions[sessionId]?.remoteActivity : undefined) ?? null);

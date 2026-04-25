@@ -63,6 +63,48 @@ export interface AuditRow {
   created_at: number;
 }
 
+export interface CpuInfo {
+  model: string;
+  speed: number;
+  times: { user: number; nice: number; sys: number; idle: number; irq: number };
+}
+
+export interface DiskInfo {
+  path: string;
+  total: number;
+  free: number;
+  available: number;
+}
+
+export interface NetworkInfo {
+  name: string;
+  address: string;
+  family: string;
+  mac: string;
+  internal: boolean;
+  cidr: string | null;
+}
+
+export interface SystemInfo {
+  cpus: CpuInfo[];
+  cpuCount: number;
+  totalmem: number;
+  freemem: number;
+  platform: NodeJS.Platform;
+  arch: string;
+  release: string;
+  hostname: string;
+  uptime: number;
+  loadavg: number[];
+  type: string;
+  version: string;
+  endianness: string;
+  userInfo: { username: string; homedir: string; shell: string | null };
+  disks: DiskInfo[];
+  networks: NetworkInfo[];
+  timestamp: number;
+}
+
 export interface UpdateInfo {
   version?: string;
   releaseName?: string;
@@ -123,6 +165,11 @@ export interface HermesElectronAPI {
     remove: (id: string) => Promise<void>;
   };
 
+  // System info (CPU / RAM / disks / network)
+  system: {
+    getInfo: () => Promise<SystemInfo>;
+  };
+
   // Audit
   audit: {
     append: (entry: {
@@ -135,6 +182,9 @@ export interface HermesElectronAPI {
     }) => Promise<void>;
     list: (opts?: { kind?: string; limit?: number }) => Promise<AuditRow[]>;
   };
+
+  // Notifications
+  showNotification: (opts: { title: string; body: string; silent?: boolean }) => Promise<{ success: boolean; error?: string }>;
 
   // Updater
   updater: {
@@ -204,10 +254,16 @@ const api: HermesElectronAPI = {
     remove: (id) => ipcRenderer.invoke('db:workspaces:delete', id),
   },
 
+  system: {
+    getInfo: () => ipcRenderer.invoke('system:get-info') as Promise<SystemInfo>,
+  },
+
   audit: {
     append: (entry) => ipcRenderer.invoke('db:audit:append', entry),
     list: (opts) => ipcRenderer.invoke('db:audit:list', opts) as Promise<AuditRow[]>,
   },
+
+  showNotification: (opts) => ipcRenderer.invoke('notification:show', opts) as Promise<{ success: boolean; error?: string }>,
 
   updater: {
     check: () => ipcRenderer.invoke('updater:check'),

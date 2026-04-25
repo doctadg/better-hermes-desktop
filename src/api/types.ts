@@ -460,6 +460,17 @@ export interface GatewayStatusResponse {
   uptime?: number;
 }
 
+// ─── Session Activity ───
+export interface SessionActivity {
+  session_id: string;
+  is_active: boolean;
+  last_event_type: string | null;
+  last_event_time: number | null;
+  active_tools: string[];
+  active_subagents: number;
+  last_assistant_text: string | null;
+}
+
 // ─── Bridge Profile ───
 export interface BridgeProfile {
   name: string;
@@ -549,11 +560,57 @@ export interface HermesAPI {
   // System
   showNotification: (title: string, body: string) => Promise<IPCResponse>;
   getPlatform: () => string;
+  getVersion: () => Promise<string>;
 
   // Credential Storage
   storeCredential: (key: string, value: string) => Promise<IPCResponse>;
   getCredential: (key: string) => Promise<IPCResponse>;
   deleteCredential: (key: string) => Promise<IPCResponse>;
+
+  // Generic KV store (electron-store)
+  storeGet: <T = unknown>(key: string) => Promise<T | undefined>;
+  storeSet: (key: string, value: unknown) => Promise<void>;
+
+  // Model library CRUD
+  models: {
+    list: () => Promise<Array<{ id: string; name: string; provider: string; model: string; base_url: string | null; created_at: number }>>;
+    add: (m: { id: string; name: string; provider: string; model: string; base_url: string | null }) => Promise<void>;
+    update: (m: { id: string; name: string; provider: string; model: string; base_url: string | null }) => Promise<void>;
+    remove: (id: string) => Promise<void>;
+  };
+
+  // Workspaces
+  workspaces: {
+    list: () => Promise<Array<{ id: string; name: string; layout: string; created_at: number; updated_at: number }>>;
+    save: (w: { id: string; name: string; layout: unknown }) => Promise<void>;
+    remove: (id: string) => Promise<void>;
+  };
+
+  // Audit
+  audit: {
+    append: (entry: {
+      id: string;
+      kind: string;
+      request_id?: string | null;
+      session_id?: string | null;
+      decision?: string | null;
+      payload?: unknown;
+    }) => Promise<void>;
+    list: (opts?: { kind?: string; limit?: number }) => Promise<Array<{ id: string; kind: string; request_id: string | null; session_id: string | null; decision: string | null; payload: string | null; created_at: number }>>;
+  };
+
+  // Updater
+  updater: {
+    check: () => Promise<unknown>;
+    download: () => Promise<unknown>;
+    install: () => Promise<unknown>;
+    onChecking: (cb: () => void) => () => void;
+    onAvailable: (cb: (info: { version?: string; releaseName?: string; releaseDate?: string; releaseNotes?: string }) => void) => () => void;
+    onNotAvailable: (cb: (info: { version?: string; releaseName?: string; releaseDate?: string; releaseNotes?: string }) => void) => () => void;
+    onProgress: (cb: (p: { bytesPerSecond: number; percent: number; transferred: number; total: number }) => void) => () => void;
+    onDownloaded: (cb: (info: { version?: string; releaseName?: string; releaseDate?: string; releaseNotes?: string }) => void) => () => void;
+    onError: (cb: (err: { message: string }) => void) => () => void;
+  };
 
   // Generic invoke
   invoke: (command: string, payload?: unknown) => Promise<unknown>;

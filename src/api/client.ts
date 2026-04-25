@@ -13,6 +13,7 @@ import type {
   SessionListResponse,
   SessionDetail,
   SessionHistoryResponse,
+  SessionActivity,
   ConfigResponse,
   ConfigModelsResponse,
   CommandCatalogResponse,
@@ -251,6 +252,15 @@ export class HermesClient {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error(`Failed to delete session: ${res.status}`);
+  }
+
+  // ─── Session Activity ───
+  async getSessionActivity(id: string): Promise<SessionActivity> {
+    const res = await fetch(`${this.baseUrl}/api/sessions/${encodeURIComponent(id)}/activity`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Failed to get session activity: ${res.status}`);
+    return res.json();
   }
 
   // ─── Config API ───
