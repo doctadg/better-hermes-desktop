@@ -1,7 +1,7 @@
 {
   "name": "better-hermes-desktop",
   "productName": "Hermes Desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Hermes Desktop — local-first AI agent companion with multi-pane chat, full slash-command arsenal, model CRUD, FTS5 session search, conflict-aware remote file editing, tabbed SSH terminals, and 15-platform gateway management",
   "author": {
     "name": "doctadg",
