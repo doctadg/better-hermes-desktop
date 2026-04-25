@@ -33,6 +33,12 @@ import type {
   BridgeProfilesResponse,
   BridgeProfileHealth,
   SystemInfo,
+  LocalNetScanResult,
+  LocalNetDevicesResponse,
+  LocalNetDevice,
+  MdnsService,
+  BambuPrinterConfig,
+  BambuPrinterStatus,
 } from './types';
 
 // ─── SSE Stream Parser ───
@@ -488,6 +494,114 @@ export class HermesClient {
     });
     if (!res.ok) throw new Error(`Failed to get system info: ${res.status}`);
     return res.json();
+  }
+
+  // ─── LocalNet API ───
+  async scanNetwork(deep = false, timeout = 10): Promise<LocalNetScanResult> {
+    const params = new URLSearchParams({ deep: String(deep), timeout: String(timeout) });
+    const res = await fetch(`${this.baseUrl}/api/localnet/scan?${params}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Scan failed: ${res.status}`);
+    return res.json();
+  }
+
+  async getLocalNetDevices(onlineOnly = false, tag?: string): Promise<LocalNetDevicesResponse> {
+    const params = new URLSearchParams({ online_only: String(onlineOnly) });
+    if (tag) params.set('tag', tag);
+    const res = await fetch(`${this.baseUrl}/api/localnet/devices?${params}`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Failed to get devices: ${res.status}`);
+    return res.json();
+  }
+
+  async getMdnsServices(): Promise<{ services: MdnsService[] }> {
+    const res = await fetch(`${this.baseUrl}/api/localnet/services`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Failed to get services: ${res.status}`);
+    return res.json();
+  }
+
+  async updateDevice(ip: string, data: { labels?: string[]; tags?: string[] }): Promise<LocalNetDevice> {
+    const res = await fetch(`${this.baseUrl}/api/localnet/devices/${ip}`, {
+      method: 'PATCH',
+      headers: { ...this.getHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(`Failed to update device: ${res.status}`);
+    return res.json();
+  }
+
+  async deleteDevice(ip: string): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/api/localnet/devices/${ip}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Failed to delete device: ${res.status}`);
+  }
+
+  async pingDevice(ip: string): Promise<{ ip: string; alive: boolean; latency_ms: number }> {
+    const res = await fetch(`${this.baseUrl}/api/localnet/ping/${ip}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Ping failed: ${res.status}`);
+    return res.json();
+  }
+
+  // ─── Bambu Printer API ───
+  async getPrinters(): Promise<BambuPrinterStatus[]> {
+    const res = await fetch(`${this.baseUrl}/api/localnet/printers`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Failed to get printers: ${res.status}`);
+    return res.json();
+  }
+
+  async addPrinter(config: BambuPrinterConfig): Promise<BambuPrinterStatus> {
+    const res = await fetch(`${this.baseUrl}/api/localnet/printers`, {
+      method: 'POST',
+      headers: { ...this.getHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!res.ok) throw new Error(`Failed to add printer: ${res.status}`);
+    return res.json();
+  }
+
+  async getPrinter(serial: string): Promise<BambuPrinterStatus> {
+    const res = await fetch(`${this.baseUrl}/api/localnet/printers/${serial}`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Failed to get printer: ${res.status}`);
+    return res.json();
+  }
+
+  async deletePrinter(serial: string): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/api/localnet/printers/${serial}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Failed to delete printer: ${res.status}`);
+  }
+
+  async sendPrinterCommand(serial: string, command: string): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/api/localnet/printers/${serial}/command`, {
+      method: 'POST',
+      headers: { ...this.getHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command }),
+    });
+    if (!res.ok) throw new Error(`Command failed: ${res.status}`);
+  }
+
+  async refreshPrinter(serial: string): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/api/localnet/printers/${serial}/refresh`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Refresh failed: ${res.status}`);
   }
 
   // ─── WebSocket URL ───
