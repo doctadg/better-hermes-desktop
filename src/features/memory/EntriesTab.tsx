@@ -7,13 +7,25 @@
  *
  * The capacity bar at the top tracks total chars vs `charLimit` (falling
  * back to 2200 when the server doesn't report one).
+ *
+ * Concurrency: writes go through `useMemoryConflict`, which hashes the file
+ * at load-time and re-checks on save. If MEMORY.md drifted on the server
+ * since we loaded it, `save()` throws `ConflictError` and we render the
+ * `ConflictModal` so the user can reload or force overwrite.
+ *
+ * The file-level hash is the unit of concurrency: per-entry Save / Delete /
+ * Duplicate buttons all serialize the full entry list back to one blob and
+ * write that. Splitting into per-entry hashes would require a server-side
+ * entry id, which doesn't exist.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Save, Trash2, Copy } from 'lucide-react';
+import { Plus, Save, Trash2, Copy, RefreshCw } from 'lucide-react';
 import { useConnectionStore } from '@/stores/connection';
 import type { MemoryResponse } from '@/api/types';
 import { CapacityBar } from './CapacityBar';
+import { ConflictError, useMemoryConflict } from './useMemoryConflict';
+import { ConflictModal } from './ConflictModal';
 
 const ENTRY_DELIMITER = '\n§\n';
 const DEFAULT_CHAR_LIMIT = 2200;
@@ -53,37 +65,57 @@ function joinEntries(entries: string[]): string {
 export function EntriesTab() {
   const client = useConnectionStore((s) => s.client);
 
+  // The conflict hook owns the *file-level* buffer. We keep a separate
+  // `drafts` state for the per-entry UI and sync them on load / save.
+  const conflict = useMemoryConflict(
+    useMemo(
+      () => ({
+        load: async () => {
+          if (!client) return { content: '' };
+          const res = (await client.getMemory()) as MemoryResponseExt;
+          // Side-channel: stash the server's reported limit so the capacity
+          // bar updates without piping through the conflict hook.
+          const limit = res.charLimit ?? DEFAULT_CHAR_LIMIT;
+          setCharLimit(limit > 0 ? limit : DEFAULT_CHAR_LIMIT);
+          return { content: res.content || '' };
+        },
+        save: async (content: string) => {
+          if (!client) return;
+          const res = (await client.patchMemory({ content })) as MemoryResponseExt;
+          const limit = res.charLimit ?? DEFAULT_CHAR_LIMIT;
+          setCharLimit(limit > 0 ? limit : DEFAULT_CHAR_LIMIT);
+        },
+      }),
+      [client],
+    ),
+  );
+
   const [drafts, setDrafts] = useState<EntryDraft[]>([]);
   const [charLimit, setCharLimit] = useState<number>(DEFAULT_CHAR_LIMIT);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [savedKey, setSavedKey] = useState<string | null>(null);
+  const [conflictError, setConflictError] = useState<ConflictError | null>(null);
+  // Action that triggered a conflict — replayed after the user picks Force
+  // overwrite, so a Delete-that-conflicted resolves with the same delete.
+  const pendingActionRef = useRef<{
+    next: EntryDraft[];
+    action: 'save' | 'delete' | 'duplicate';
+    actionKey: string;
+  } | null>(null);
   const savedClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadFromServer = useCallback(async () => {
-    if (!client) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const res = (await client.getMemory()) as MemoryResponseExt;
-      const limit = res.charLimit ?? DEFAULT_CHAR_LIMIT;
-      const pieces = splitEntries(res.content || '');
-      setCharLimit(limit > 0 ? limit : DEFAULT_CHAR_LIMIT);
-      setDrafts(pieces.map((p) => ({ key: makeKey(), value: p, saved: p })));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load MEMORY.md');
-    } finally {
-      setLoading(false);
-    }
-  }, [client]);
-
+  // When the server's content snapshot changes (initial load or after a
+  // successful save), re-derive the per-entry drafts. We compare against the
+  // current saved string to avoid clobbering in-flight edits the user just
+  // typed but hasn't dispatched yet.
+  const lastSyncedOriginalRef = useRef<string | null>(null);
   useEffect(() => {
-    void loadFromServer();
-  }, [loadFromServer]);
+    if (conflict.loading) return;
+    if (lastSyncedOriginalRef.current === conflict.originalContent) return;
+    lastSyncedOriginalRef.current = conflict.originalContent;
+    const pieces = splitEntries(conflict.originalContent);
+    setDrafts(pieces.map((p) => ({ key: makeKey(), value: p, saved: p })));
+  }, [conflict.loading, conflict.originalContent]);
 
   useEffect(
     () => () => {
@@ -103,32 +135,46 @@ export function EntriesTab() {
     savedClearTimer.current = setTimeout(() => setSavedKey(null), 1500);
   }, []);
 
-  // Persist a synthesized entries array to the server, then refresh local
-  // state from the server's authoritative response.
+  // Persist a synthesized entries array to the server through the conflict
+  // hook, then refresh the local drafts to reflect the server snapshot.
   const persist = useCallback(
-    async (next: EntryDraft[], action: 'save' | 'delete' | 'duplicate', actionKey: string) => {
+    async (
+      next: EntryDraft[],
+      action: 'save' | 'delete' | 'duplicate',
+      actionKey: string,
+      opts: { force?: boolean } = {},
+    ) => {
       if (!client) return;
       setBusyKey(actionKey);
-      setError(null);
       try {
         const content = joinEntries(next.map((d) => d.value));
-        const res = (await client.patchMemory({ content })) as MemoryResponseExt;
-        const limit = res.charLimit ?? DEFAULT_CHAR_LIMIT;
-        setCharLimit(limit > 0 ? limit : DEFAULT_CHAR_LIMIT);
-        // Mark all of `next` as saved at their current values.
+        // Push the serialized file into the conflict hook's buffer so
+        // `save()` writes the right thing.
+        conflict.setContent(content);
+        if (opts.force) {
+          await conflict.forceSave();
+        } else {
+          await conflict.save();
+        }
+        // Adopt the just-written drafts as the server-confirmed snapshot.
+        // We deliberately don't wait for the next loaded-snapshot sync
+        // because the user may have already started typing in another entry.
         setDrafts(next.map((d) => ({ ...d, saved: d.value })));
+        lastSyncedOriginalRef.current = content;
         if (action === 'save') flashSaved(actionKey);
+        pendingActionRef.current = null;
       } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : `Failed to ${action} memory entry`,
-        );
+        if (err instanceof ConflictError) {
+          // Stash the action so Force overwrite can replay it.
+          pendingActionRef.current = { next, action, actionKey };
+          setConflictError(err);
+        }
+        // All other errors land in `conflict.error` via the hook.
       } finally {
         setBusyKey(null);
       }
     },
-    [client, flashSaved],
+    [client, conflict, flashSaved],
   );
 
   const handleChange = useCallback((key: string, value: string) => {
@@ -171,6 +217,32 @@ export function EntriesTab() {
     setDrafts((prev) => [...prev, fresh]);
   }, []);
 
+  const handleReload = useCallback(async () => {
+    setConflictError(null);
+    pendingActionRef.current = null;
+    await conflict.load();
+  }, [conflict]);
+
+  const handleForceOverwrite = useCallback(async () => {
+    const pending = pendingActionRef.current;
+    setConflictError(null);
+    if (!pending) {
+      // No replayable action — just overwrite with whatever's in the buffer.
+      try {
+        await conflict.forceSave();
+      } catch {
+        // surfaced via conflict.error
+      }
+      return;
+    }
+    await persist(pending.next, pending.action, pending.actionKey, { force: true });
+  }, [conflict, persist]);
+
+  const handleCancelConflict = useCallback(() => {
+    setConflictError(null);
+    pendingActionRef.current = null;
+  }, []);
+
   if (!client) {
     return <NoConnection />;
   }
@@ -178,27 +250,38 @@ export function EntriesTab() {
   return (
     <div className="h-full flex flex-col">
       <div className="shrink-0 border-b border-zinc-800 px-4 py-3">
-        <CapacityBar
-          used={totalChars}
-          limit={charLimit}
-          label={`MEMORY.md · ${drafts.length} ${drafts.length === 1 ? 'entry' : 'entries'}`}
-        />
+        <div className="flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <CapacityBar
+              used={totalChars}
+              limit={charLimit}
+              label={`MEMORY.md · ${drafts.length} ${drafts.length === 1 ? 'entry' : 'entries'}`}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => void conflict.load()}
+            disabled={conflict.loading || conflict.saving}
+            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 disabled:opacity-40"
+            title="Reload from server"
+          >
+            <RefreshCw
+              size={12}
+              className={conflict.loading ? 'animate-spin' : undefined}
+            />
+            Reload
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {error && (
+        {conflict.error && (
           <div className="text-xs text-rose-400 bg-rose-900/20 border border-rose-800 rounded-lg px-3 py-2">
-            {error}
-            <button
-              onClick={() => setError(null)}
-              className="ml-2 text-rose-500 hover:text-rose-300"
-            >
-              dismiss
-            </button>
+            {conflict.error}
           </div>
         )}
 
-        {loading ? (
+        {conflict.loading ? (
           <div className="flex items-center justify-center text-zinc-500 text-sm py-12">
             <span className="inline-block w-4 h-4 border border-zinc-600 border-t-transparent rounded-full animate-spin mr-2" />
             Loading MEMORY.md...
@@ -273,7 +356,7 @@ export function EntriesTab() {
           })
         )}
 
-        {!loading && (
+        {!conflict.loading && (
           <div className="pt-2">
             <button
               type="button"
@@ -285,6 +368,16 @@ export function EntriesTab() {
           </div>
         )}
       </div>
+
+      {conflictError && (
+        <ConflictModal
+          error={conflictError}
+          fileLabel="MEMORY.md"
+          onReload={() => void handleReload()}
+          onForceOverwrite={() => void handleForceOverwrite()}
+          onCancel={handleCancelConflict}
+        />
+      )}
     </div>
   );
 }

@@ -1,55 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Cpu, MemoryStick, HardDrive, Network, Server, Activity } from 'lucide-react';
-
-interface CpuTimes {
-  user: number;
-  nice: number;
-  sys: number;
-  idle: number;
-  irq: number;
-}
-
-interface CpuInfo {
-  model: string;
-  speed: number;
-  times: CpuTimes;
-}
-
-interface DiskInfo {
-  path: string;
-  total: number;
-  free: number;
-  available: number;
-}
-
-interface NetworkInfo {
-  name: string;
-  address: string;
-  family: string;
-  mac: string;
-  internal: boolean;
-  cidr: string | null;
-}
-
-interface SystemInfo {
-  cpus: CpuInfo[];
-  cpuCount: number;
-  totalmem: number;
-  freemem: number;
-  platform: string;
-  arch: string;
-  release: string;
-  hostname: string;
-  uptime: number;
-  loadavg: number[];
-  type: string;
-  version: string;
-  endianness: string;
-  userInfo: { username: string; homedir: string; shell: string | null };
-  disks: DiskInfo[];
-  networks: NetworkInfo[];
-  timestamp: number;
-}
+import { useConnectionStore } from '@/stores/connection';
+import type { CpuTimes, CpuInfo, DiskInfo, NetworkInfo, SystemInfo } from '@/api/types';
 
 type HermesAPI = { system?: { getInfo: () => Promise<SystemInfo> } };
 
@@ -123,12 +75,21 @@ export function HardwareScreen() {
   const [coreUsage, setCoreUsage] = useState<number[]>([]);
   const prevTimesRef = useRef<CpuTimes[] | null>(null);
   const cancelledRef = useRef(false);
+  const client = useConnectionStore((s) => s.client);
 
   useEffect(() => {
     cancelledRef.current = false;
     const api = getApi();
-    if (!api?.system?.getInfo) {
-      setError('System info unavailable: this build is not running inside Electron.');
+
+    // Data source: Electron IPC if available, otherwise bridge API
+    const getInfo = api?.system?.getInfo
+      ? () => api.system!.getInfo()
+      : client
+      ? () => client.getSystemInfo()
+      : null;
+
+    if (!getInfo) {
+      setError('System info unavailable: no connection to server or Electron IPC.');
       return;
     }
 
@@ -136,7 +97,7 @@ export function HardwareScreen() {
 
     const tick = async () => {
       try {
-        const next = await api.system!.getInfo();
+        const next = await getInfo();
         if (cancelledRef.current) return;
 
         const currTimes = next.cpus.map((c) => c.times);
@@ -164,7 +125,7 @@ export function HardwareScreen() {
       cancelledRef.current = true;
       if (timer) clearTimeout(timer);
     };
-  }, []);
+  }, [client]);
 
   if (error && !info) {
     return (

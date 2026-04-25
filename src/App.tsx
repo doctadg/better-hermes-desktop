@@ -13,6 +13,9 @@ import {
   FileCode,
   GitCompare,
   Cpu,
+  LayoutGrid,
+  Columns2,
+  ShieldCheck,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ConnectionPicker } from '@/components/connection/ConnectionPicker';
@@ -32,6 +35,11 @@ import { SettingsScreen } from '@/features/settings/SettingsScreen';
 import { ModelsScreen } from '@/features/models/ModelsScreen';
 import { GatewaysScreen } from '@/features/gateways/GatewaysScreen';
 import { SessionsScreen } from '@/features/sessions/SessionsScreen';
+import { WorkspacesScreen } from '@/features/workspaces/WorkspacesScreen';
+import { QuickSwitcher } from '@/features/workspaces/QuickSwitcher';
+import { CompareScreen } from '@/features/compare/CompareScreen';
+import { AuditScreen } from '@/features/audit/AuditScreen';
+import { useStreamUsageBridge } from '@/features/usage/useStreamUsageBridge';
 import { PaneGrid } from '@/components/layout/PaneGrid';
 import { PaneHud } from '@/components/layout/PaneHud';
 import { CommandPalette } from '@/components/layout/CommandPalette';
@@ -52,6 +60,9 @@ type NavItem =
   | 'schedules'
   | 'gateways'
   | 'hardware'
+  | 'workspaces'
+  | 'compare'
+  | 'audit'
   | 'settings';
 
 interface NavDef {
@@ -64,6 +75,7 @@ const NAV_ITEMS: NavDef[] = [
   { id: 'chat', label: 'Chat', icon: <MessageSquare size={18} /> },
   { id: 'sessions', label: 'Sessions', icon: <History size={18} /> },
   { id: 'models', label: 'Models', icon: <Boxes size={18} /> },
+  { id: 'compare', label: 'A/B Compare', icon: <Columns2 size={18} /> },
   { id: 'memory', label: 'Memory', icon: <Brain size={18} /> },
   { id: 'soul', label: 'Persona', icon: <Heart size={18} /> },
   { id: 'skills', label: 'Skills', icon: <Sparkles size={18} /> },
@@ -72,11 +84,17 @@ const NAV_ITEMS: NavDef[] = [
   { id: 'diff', label: 'Diff', icon: <GitCompare size={18} /> },
   { id: 'schedules', label: 'Schedules', icon: <CalendarClock size={18} /> },
   { id: 'gateways', label: 'Gateways', icon: <Send size={18} /> },
+  { id: 'workspaces', label: 'Workspaces', icon: <LayoutGrid size={18} /> },
+  { id: 'audit', label: 'Audit', icon: <ShieldCheck size={18} /> },
   { id: 'hardware', label: 'Hardware', icon: <Cpu size={18} /> },
   { id: 'settings', label: 'Settings', icon: <SettingsIcon size={18} /> },
 ];
 
 export default function App() {
+  // Bridge SSE chat-usage events into the per-session usage store. Safe no-op
+  // until the chat store exposes subscribeToUsage (see usage/INTEGRATION.md).
+  useStreamUsageBridge();
+
   const [activeNav, setActiveNav] = useState<NavItem>('chat');
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [contextWidth, setContextWidth] = useState(320);
@@ -193,6 +211,12 @@ export default function App() {
         return <SchedulesScreen />;
       case 'gateways':
         return <GatewaysScreen />;
+      case 'workspaces':
+        return <WorkspacesScreen />;
+      case 'compare':
+        return <CompareScreen />;
+      case 'audit':
+        return <AuditScreen />;
       case 'hardware':
         return <HardwareScreen />;
       case 'settings':
@@ -221,6 +245,7 @@ export default function App() {
         <div className="flex-1 self-stretch" />
 
         <div className="no-drag flex items-center gap-2 shrink-0">
+          <QuickSwitcher />
           <PaneHud />
           <button
             onClick={() => setPaletteOpen(true)}
@@ -232,6 +257,20 @@ export default function App() {
               <path d="M10.5 10.5L14 14" />
             </svg>
             <kbd className="font-mono">⌘K</kbd>
+          </button>
+          <button
+            onClick={() => setSidebarVisible((v) => !v)}
+            className={`p-1 rounded transition-colors duration-150 ${
+              sidebarVisible
+                ? 'bg-zinc-800 text-amber-500'
+                : 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+            }`}
+            title="Toggle session sidebar (Ctrl+B)"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="2" y="2" width="12" height="12" rx="2" />
+              <line x1="5.5" y1="2" x2="5.5" y2="14" />
+            </svg>
           </button>
           <button
             onClick={() => setContextVisible((v) => !v)}

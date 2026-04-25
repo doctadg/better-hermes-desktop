@@ -32,6 +32,7 @@ import type {
   GatewayStatusResponse,
   BridgeProfilesResponse,
   BridgeProfileHealth,
+  SystemInfo,
 } from './types';
 
 // ─── SSE Stream Parser ───
@@ -477,6 +478,15 @@ export class HermesClient {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error(`Failed to get profile health: ${res.status}`);
+    return res.json();
+  }
+
+  // ─── System Info API ───
+  async getSystemInfo(): Promise<SystemInfo> {
+    const res = await fetch(`${this.baseUrl}/api/system/info`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Failed to get system info: ${res.status}`);
     return res.json();
   }
 

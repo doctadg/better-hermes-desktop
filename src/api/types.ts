@@ -571,6 +571,49 @@ export interface HermesAPI {
   storeGet: <T = unknown>(key: string) => Promise<T | undefined>;
   storeSet: (key: string, value: unknown) => Promise<void>;
 
+  // Window state push events
+  onWindowStateChanged: (cb: (maximized: boolean) => void) => () => void;
+
+  // Sessions cache (mirror of /api/sessions)
+  sessions: {
+    upsert: (s: {
+      id: string;
+      profile?: string | null;
+      source?: string | null;
+      started_at?: number | null;
+      ended_at?: number | null;
+      message_count?: number;
+      model?: string | null;
+      title?: string | null;
+    }) => Promise<void>;
+    list: (opts?: { profile?: string | null; limit?: number; offset?: number }) => Promise<Array<{
+      id: string;
+      profile: string | null;
+      source: string | null;
+      started_at: number | null;
+      ended_at: number | null;
+      message_count: number;
+      model: string | null;
+      title: string | null;
+      updated_at: number;
+    }>>;
+    remove: (id: string) => Promise<void>;
+    messages: (sessionId: string) => Promise<Array<{ id: string; role: string; content: string; timestamp: number }>>;
+  };
+
+  // Messages (FTS5 search)
+  messages: {
+    insert: (m: { id: string; session_id: string; role: string; content: string; timestamp: number }) => Promise<void>;
+    search: (query: string, opts?: { limit?: number; profile?: string | null }) => Promise<Array<{
+      session_id: string;
+      role: string;
+      timestamp: number;
+      snippet: string;
+      session_title: string | null;
+      session_started_at: number | null;
+    }>>;
+  };
+
   // Model library CRUD
   models: {
     list: () => Promise<Array<{ id: string; name: string; provider: string; model: string; base_url: string | null; created_at: number }>>;
@@ -618,6 +661,57 @@ export interface HermesAPI {
   // Platform info
   platform: string;
   isElectron: boolean;
+}
+
+// ─── System Info (Hardware) ───
+export interface CpuTimes {
+  user: number;
+  nice: number;
+  sys: number;
+  idle: number;
+  irq: number;
+}
+
+export interface CpuInfo {
+  model: string;
+  speed: number;
+  times: CpuTimes;
+}
+
+export interface DiskInfo {
+  path: string;
+  total: number;
+  free: number;
+  available: number;
+}
+
+export interface NetworkInfo {
+  name: string;
+  address: string;
+  family: string;
+  mac: string;
+  internal: boolean;
+  cidr: string | null;
+}
+
+export interface SystemInfo {
+  cpus: CpuInfo[];
+  cpuCount: number;
+  totalmem: number;
+  freemem: number;
+  platform: string;
+  arch: string;
+  release: string;
+  hostname: string;
+  uptime: number;
+  loadavg: number[];
+  type: string;
+  version: string;
+  endianness: string;
+  userInfo: { username: string; homedir: string; shell: string | null };
+  disks: DiskInfo[];
+  networks: NetworkInfo[];
+  timestamp: number;
 }
 
 declare global {
