@@ -16,6 +16,7 @@ import {
   LayoutGrid,
   Columns2,
   ShieldCheck,
+  Wifi,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ConnectionPicker } from '@/components/connection/ConnectionPicker';
@@ -39,6 +40,7 @@ import { WorkspacesScreen } from '@/features/workspaces/WorkspacesScreen';
 import { QuickSwitcher } from '@/features/workspaces/QuickSwitcher';
 import { CompareScreen } from '@/features/compare/CompareScreen';
 import { AuditScreen } from '@/features/audit/AuditScreen';
+import { LocalNetScreen } from '@/features/localnet/LocalNetScreen';
 import { useStreamUsageBridge } from '@/features/usage/useStreamUsageBridge';
 import { PaneGrid } from '@/components/layout/PaneGrid';
 import { PaneHud } from '@/components/layout/PaneHud';
@@ -60,6 +62,7 @@ type NavItem =
   | 'schedules'
   | 'gateways'
   | 'hardware'
+  | 'localnet'
   | 'workspaces'
   | 'compare'
   | 'audit'
@@ -87,6 +90,7 @@ const NAV_ITEMS: NavDef[] = [
   { id: 'workspaces', label: 'Workspaces', icon: <LayoutGrid size={18} /> },
   { id: 'audit', label: 'Audit', icon: <ShieldCheck size={18} /> },
   { id: 'hardware', label: 'Hardware', icon: <Cpu size={18} /> },
+  { id: 'localnet', label: 'Network', icon: <Wifi size={18} /> },
   { id: 'settings', label: 'Settings', icon: <SettingsIcon size={18} /> },
 ];
 
@@ -219,6 +223,8 @@ export default function App() {
         return <AuditScreen />;
       case 'hardware':
         return <HardwareScreen />;
+      case 'localnet':
+        return <LocalNetScreen />;
       case 'settings':
         return <SettingsScreen />;
       case 'chat':

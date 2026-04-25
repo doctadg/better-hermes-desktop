@@ -714,6 +714,80 @@ export interface SystemInfo {
   timestamp: number;
 }
 
+// ─── LocalNet Device ───
+export interface LocalNetDevice {
+  ip: string;
+  mac: string;
+  hostname: string;
+  vendor: string;
+  labels: string[];
+  tags: string[];
+  ports: number[];
+  mdns_services: MdnsService[];
+  last_seen: string;
+  online: boolean;
+}
+
+export interface MdnsService {
+  name: string;
+  type: string;
+  ip: string;
+  port: number;
+  properties?: Record<string, string>;
+}
+
+export interface LocalNetScanResult {
+  devices: LocalNetDevice[];
+  scan_duration_ms: number;
+  strategies_used: string[];
+}
+
+export interface LocalNetDevicesResponse {
+  devices: LocalNetDevice[];
+  total: number;
+  online: number;
+  offline: number;
+}
+
+// ─── Bambu Printer ───
+export interface BambuPrinterConfig {
+  serial: string;
+  host: string;
+  access_code: string;
+  username?: string;
+  model?: string;
+  name?: string;
+}
+
+export interface AmsTray {
+  id: string;
+  ctype: string;
+  color: string;
+  remain_pct: number;
+}
+
+export interface BambuPrinterStatus {
+  serial: string;
+  host: string;
+  model: string;
+  name: string;
+  online: boolean;
+  gcode_state: string;
+  progress_percent: number;
+  remaining_time_min: number;
+  bed_temp: number;
+  bed_target: number;
+  nozzle_temp: number;
+  nozzle_target: number;
+  current_file: string;
+  layer_num: number;
+  total_layers: number;
+  speed_level: number;
+  ams_trays: AmsTray[];
+  camera_url: string;
+  last_update: string;
+}
+
 declare global {
   interface Window {
     hermesAPI: HermesAPI;
