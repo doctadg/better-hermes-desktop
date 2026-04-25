@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+dist-electron/
+out/
+release/
+*.app/
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+*.msi
+*.nupkg
+*.snap
+*.tar.gz
+*.zip
+!build/icon*.png
+!build/*.icns
+!build/*.ico
+
+# electron-builder
+*.blockmap
+latest*.yml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# OS
+.DS_Store
+desktop.ini
+
+# Test coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# TypeScript
+*.tsbuildinfo
+
+# Cache
+.cache/
+.parcel-cache/
+.turbo/
+.rollup.cache/
+.vite/

@@ -1,0 +1,75 @@
+{
+  "app": {
+    "name": "Hermes Desktop",
+    "tagline": "Local-first AI agent companion"
+  },
+  "nav": {
+    "chat": "Chat",
+    "sessions": "Sessions",
+    "models": "Models",
+    "skills": "Skills",
+    "tools": "Tools",
+    "memory": "Memory",
+    "soul": "Persona",
+    "schedules": "Schedules",
+    "gateways": "Gateways",
+    "workspaces": "Workspaces",
+    "terminal": "Terminal",
+    "settings": "Settings"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "loading": "Loading…",
+    "error": "Error",
+    "retry": "Retry",
+    "close": "Close",
+    "confirm": "Confirm",
+    "ok": "OK"
+  },
+  "chat": {
+    "send": "Send",
+    "stop": "Stop",
+    "newSession": "New session",
+    "placeholder": "Ask anything, type / for commands"
+  },
+  "models": {
+    "title": "Models",
+    "addModel": "Add model",
+    "editModel": "Edit model",
+    "name": "Display name",
+    "provider": "Provider",
+    "modelId": "Model ID",
+    "baseUrl": "Base URL",
+    "deleteConfirm": "Delete this model?",
+    "empty": "No saved models yet."
+  },
+  "sessions": {
+    "title": "Sessions",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This Week",
+    "earlier": "Earlier",
+    "searchPlaceholder": "Search messages…"
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "connection": "Connection",
+    "data": "Data",
+    "logs": "Logs",
+    "about": "About"
+  },
+  "updater": {
+    "checking": "Checking for updates…",
+    "available": "Update available: v{{version}}",
+    "downloading": "Downloading update… {{percent}}%",
+    "downloaded": "Update downloaded — restart to install",
+    "install": "Restart and install",
+    "notAvailable": "You're up to date"
+  }
+}

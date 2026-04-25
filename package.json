@@ -1,0 +1,88 @@
+{
+  "name": "better-hermes-desktop",
+  "productName": "Hermes Desktop",
+  "version": "0.2.0",
+  "description": "Hermes Desktop — local-first AI agent companion with multi-pane chat, full slash-command arsenal, model CRUD, FTS5 session search, conflict-aware remote file editing, tabbed SSH terminals, and 15-platform gateway management",
+  "author": {
+    "name": "doctadg",
+    "email": "doctadg@gmail.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/doctadg/better-hermes-desktop",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/doctadg/better-hermes-desktop.git"
+  },
+  "bugs": {
+    "url": "https://github.com/doctadg/better-hermes-desktop/issues"
+  },
+  "keywords": [
+    "hermes",
+    "ai",
+    "agent",
+    "desktop",
+    "electron",
+    "local-first"
+  ],
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-on http://localhost:5173 && tsc -p tsconfig.electron.json && electron .\"",
+    "electron:build": "npm run build && npm run build:electron && electron-builder --config electron-builder.json5",
+    "electron:build:win": "npm run build && npm run build:electron && electron-builder --config electron-builder.json5 --win",
+    "electron:build:mac": "npm run build && npm run build:electron && electron-builder --config electron-builder.json5 --mac",
+    "electron:build:linux": "npm run build && npm run build:electron && electron-builder --config electron-builder.json5 --linux",
+    "electron:build:all": "npm run build && npm run build:electron && electron-builder --config electron-builder.json5 -mwl",
+    "electron:rebuild": "electron-rebuild",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "better-sqlite3": "^12.8.0",
+    "electron-store": "^10.0.0",
+    "electron-updater": "^6.3.9",
+    "i18next": "^25.6.0",
+    "lucide-react": "^0.475.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-i18next": "^15.7.3",
+    "react-markdown": "^9.0.0",
+    "react-syntax-highlighter": "^15.6.1",
+    "remark-gfm": "^4.0.0",
+    "uuid": "^11.0.5",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.1",
+    "@tailwindcss/vite": "^4.0.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "@vitest/ui": "^2.1.8",
+    "autoprefixer": "^10.4.0",
+    "concurrently": "^9.0.0",
+    "electron": "^35.0.0",
+    "electron-builder": "^25.0.0",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^2.1.8",
+    "wait-on": "^8.0.0"
+  }
+}
